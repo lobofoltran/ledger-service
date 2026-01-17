@@ -2,6 +2,7 @@ package com.company.ledgerservice.application;
 
 import java.math.BigDecimal;
 
+import com.company.ledgerservice.application.exception.AccountNotFoundException;
 import com.company.ledgerservice.domain.model.Account;
 import com.company.ledgerservice.domain.repository.AccountRepository;
 
@@ -16,7 +17,7 @@ public class LedgerService {
     public BigDecimal getBalance(String accountId) {
         return repository.findById(accountId)
                 .map(Account::getBalance)
-                .orElse(null);
+                .orElseThrow(AccountNotFoundException::new);
     }
 
     public Account deposit(String accountId, BigDecimal amount) {
@@ -30,7 +31,7 @@ public class LedgerService {
 
     public Account withdraw(String accountId, BigDecimal amount) {
         Account account = repository.findById(accountId)
-                .orElseThrow(IllegalArgumentException::new);
+                .orElseThrow(AccountNotFoundException::new);
 
         account.withdraw(amount);
 
@@ -39,7 +40,7 @@ public class LedgerService {
 
     public TransferResult transfer(String originId, String destinationId, BigDecimal amount) {
         Account originAccount = repository.findById(originId)
-                .orElseThrow(IllegalArgumentException::new);
+                .orElseThrow(AccountNotFoundException::new);
 
         Account destinationAccount = repository.findById(destinationId)
                 .orElse(new Account(destinationId, BigDecimal.ZERO));
