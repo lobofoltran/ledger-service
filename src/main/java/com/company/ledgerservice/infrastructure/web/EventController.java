@@ -1,8 +1,5 @@
 package com.company.ledgerservice.infrastructure.web;
 
-import java.math.BigDecimal;
-import java.util.Map;
-
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,6 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.company.ledgerservice.application.LedgerService;
 import com.company.ledgerservice.application.TransferResult;
 import com.company.ledgerservice.domain.model.Account;
+import com.company.ledgerservice.infrastructure.web.dto.AccountResponse;
+import com.company.ledgerservice.infrastructure.web.dto.EventRequest;
+import com.company.ledgerservice.infrastructure.web.dto.EventResponse;
 
 @RestController
 public class EventController {
@@ -21,52 +21,41 @@ public class EventController {
     }
 
     @PostMapping("/event")
-    public Object handleEvent(@RequestBody Map<String, Object> event) {
-        String type = (String) event.get("type");
-
-        switch (type) {
+    public Object handleEvent(@RequestBody EventRequest event) {
+        
+        switch (event.type()) {
             case "deposit": {
-                String destination = (String) event.get("destination");
-                BigDecimal amount = new BigDecimal(event.get("amount").toString());
+                Account deposited = ledgerService.deposit(event.destination(), event.amount());
 
-                Account account = ledgerService.deposit(destination, amount);
-
-                return Map.of(
-                        "destination", Map.of(
-                                "id", account.getId(),
-                                "balance", account.getBalance()));
+                return new EventResponse(
+                        null,
+                        toAccountResponse(deposited));
             }
-            
+
             case "withdraw": {
-                String origin = (String) event.get("origin");
-                BigDecimal amount = new BigDecimal(event.get("amount").toString());
+                Account withdrawn = ledgerService.withdraw(event.origin(), event.amount());
 
-                Account account = ledgerService.withdraw(origin, amount);
-
-                return Map.of(
-                        "origin", Map.of(
-                                "id", account.getId(),
-                                "balance", account.getBalance()));
+                return new EventResponse(
+                        toAccountResponse(withdrawn),
+                        null);
             }
 
             case "transfer": {
-                String origin = (String) event.get("origin");
-                String destination = (String) event.get("destination");
-                BigDecimal amount = new BigDecimal(event.get("amount").toString());
+                TransferResult result = ledgerService.transfer(event.origin(), event.destination(), event.amount());
 
-                TransferResult result = ledgerService.transfer(origin, destination, amount);
-
-                return Map.of(
-                        "origin", Map.of(
-                                "id", result.getOrigin().getId(),
-                                "balance", result.getOrigin().getBalance()),
-                        "destination", Map.of(
-                                "id", result.getDestination().getId(),
-                                "balance", result.getDestination().getBalance()));
+                return new EventResponse(
+                        toAccountResponse(result.getOrigin()),
+                        toAccountResponse(result.getDestination()));
             }
 
             default:
                 throw new IllegalArgumentException("Invalid event type");
         }
+    }
+
+    private AccountResponse toAccountResponse(Account deposited) {
+        return new AccountResponse(
+                deposited.getId(),
+                deposited.getBalance());
     }
 }
